@@ -1,6 +1,7 @@
 from fastapi import FastAPI, status, Response, Request
 from pydantic import BaseModel
 from datetime import date
+from typing import List, Dict
 
 app = FastAPI()
 
@@ -58,7 +59,9 @@ class JSONItem(BaseModel):
     event: str
 
 
+# Dict[str, List[JSONItem]]
 app.counter = 0
+app.events: Dict[str, List[JSONItem]] = dict()
 
 
 @app.put('/events', status_code=status.HTTP_200_OK)  # 1.4
@@ -69,5 +72,18 @@ def update_events(item: JSONItem):
         "date": item.date,
         "date_added": str(date.today())
     }
+    try:
+        app.events[retv["date"]].append(retv)
+    except KeyError:
+        app.events[retv["date"]] = [retv]
     app.counter += 1
     return retv
+
+
+@app.get('/events', status_code=status.HTTP_200_OK)
+def get_events(date: str, response: Response):
+    try:
+        return app.events[date]
+    except KeyError:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return
