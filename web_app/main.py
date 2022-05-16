@@ -5,7 +5,4 @@ app = FastAPI()
 
 @app.get("/")
 def root():
-    return {"message": "Hello World"}
-
-
-print('sdsdsdsdsdsdsdsds')
+    return {"message": "zmiana Hello World"}
