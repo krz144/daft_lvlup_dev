@@ -1,6 +1,6 @@
 from fastapi import FastAPI, status, Response, Request
 from pydantic import BaseModel
-from datetime import date
+from datetime import date, datetime
 from typing import List, Dict
 
 app = FastAPI()
@@ -82,6 +82,11 @@ def update_events(item: JSONItem):
 
 @app.get('/events/{date}', status_code=status.HTTP_200_OK)
 def get_events(date: str, response: Response):
+    try:
+        datetime.strptime(date, '%Y-%m-%d')
+    except ValueError:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return
     try:
         return app.events[date]
     except KeyError:
