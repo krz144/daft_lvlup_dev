@@ -11,9 +11,9 @@ def root():
     return {"start": "1970-01-01"}
 
 
-@app.api_route("/test", methods=['GET', 'POST'])
-def testoowanko(request: Request):
-    return f'Client used {request.method} method'
+# @app.api_route("/test", methods=['GET', 'POST'])
+# def testoowanko(request: Request):
+#     return f'Client used {request.method} method'
 
 
 @app.get('/method', status_code=status.HTTP_200_OK)  # 1.2
@@ -80,7 +80,7 @@ def update_events(item: JSONItem):
     return retv
 
 
-@app.get('/events', status_code=status.HTTP_200_OK)
+@app.get('/events/{date}', status_code=status.HTTP_200_OK)
 def get_events(date: str, response: Response):
     try:
         return app.events[date]
