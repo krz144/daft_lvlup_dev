@@ -61,7 +61,7 @@ class JSONItem(BaseModel):
 
 # Dict[str, List[JSONItem]]
 app.counter = 0
-app.events: Dict[str, List[JSONItem]] = dict()
+app.events = dict()
 
 
 @app.put('/events', status_code=status.HTTP_200_OK)  # 1.4
