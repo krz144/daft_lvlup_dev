@@ -1,5 +1,6 @@
-from os import stat
 from fastapi import FastAPI, status, Response, Request
+from pydantic import BaseModel
+from datetime import date
 
 app = FastAPI()
 
@@ -50,3 +51,23 @@ def check_day(response: Response, name: str | None = None, number: int | None = 
             return
     response.status_code = status.HTTP_400_BAD_REQUEST
     return
+
+
+class JSONItem(BaseModel):
+    date: str
+    event: str
+
+
+app.counter = 0
+
+
+@app.put('/events', status_code=status.HTTP_200_OK)  # 1.4
+def update_events(item: JSONItem):
+    retv = {
+        "id": app.counter,
+        "name": item.event,
+        "date": item.date,
+        "date_added": str(date.today())
+    }
+    app.counter += 1
+    return retv
