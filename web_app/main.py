@@ -1,4 +1,5 @@
 from fastapi import FastAPI, status, Response, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from datetime import date, datetime
 from typing import List, Dict
@@ -92,3 +93,10 @@ def get_events(date: str, response: Response):
     except KeyError:
         response.status_code = status.HTTP_404_NOT_FOUND
         return
+
+# Zadania Seria 3
+
+
+@app.get('/start', response_class=HTMLResponse)
+def start(response: Response):
+    return """<h1>The unix epoch started at 1970-01-01</h1>"""
