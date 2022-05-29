@@ -106,26 +106,27 @@ def start(response: Response):
 # 3.2
 
 
-@app.post('/check')
-def check(username: str, password: str, response: Response, response_class=HTMLResponse):
+@app.post('/check', response_class=HTMLResponse)
+def check(username: str, password: str, response: Response):
     response.status_code = status.HTTP_401_UNAUTHORIZED
     try:
         now = datetime.now()
         to_check = datetime.strptime(password, '%Y-%m-%d')
         time_diff = now - to_check
-        if time_diff.days < 16*365:
+        if time_diff.days >= 16*365:
             response.status_code = status.HTTP_200_OK
-            return """<h1>Welcome [imie]! You are [wiek]</h1>"""
+            age = time_diff.days // 365
+            return f'<h1>Welcome {username}! You are {age}</h1>'
     except ValueError:
         return
 
 
-if __name__ == '__main__':
-    # now_date_str = str(datetime.now())[0:10]
-    # now_date = datetime.date(now_date_str)
-    now = datetime.now()
-    to_check = datetime.strptime("2001-01-01", '%Y-%m-%d')
-    time_diff = now - to_check
-    if time_diff.days < 16*365:
-        pass  # OK
-    print(time_diff.days)
+# if __name__ == '__main__':
+#     # now_date_str = str(datetime.now())[0:10]
+#     # now_date = datetime.date(now_date_str)
+#     now = datetime.now()
+#     to_check = datetime.strptime("2001-01-01", '%Y-%m-%d')
+#     time_diff = now - to_check
+#     if time_diff.days < 16*365:
+#         pass  # OK
+#     print(time_diff.days)
