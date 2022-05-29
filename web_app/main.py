@@ -1,10 +1,12 @@
-from fastapi import FastAPI, status, Response, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, status, Response, Request, Depends, Query, Header
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from datetime import date, datetime
 from typing import List, Dict
 
 app = FastAPI()
+security = HTTPBasic()
 
 
 @app.get("/", status_code=status.HTTP_200_OK)  # 1.1
@@ -107,7 +109,9 @@ def start(response: Response):
 
 
 @app.post('/check', response_class=HTMLResponse)
-def check(username: str, password: str, response: Response):
+def check(response: Response, credentials: HTTPBasicCredentials = Depends(security)):
+    username = credentials.username
+    password = credentials.password
     response.status_code = status.HTTP_401_UNAUTHORIZED
     try:
         now = datetime.now()
@@ -120,13 +124,42 @@ def check(username: str, password: str, response: Response):
     except ValueError:
         return
 
+# 3.3
 
-# if __name__ == '__main__':
-#     # now_date_str = str(datetime.now())[0:10]
-#     # now_date = datetime.date(now_date_str)
-#     now = datetime.now()
-#     to_check = datetime.strptime("2001-01-01", '%Y-%m-%d')
-#     time_diff = now - to_check
-#     if time_diff.days < 16*365:
-#         pass  # OK
-#     print(time_diff.days)
+
+@app.get('/info')
+def info(format: str = Query(None), user_agent: str | None = Header(default=None)):
+    if format == 'json':
+        return {"user_agent": user_agent}
+    elif format == 'html':
+        return HTMLResponse(f'<input type="text" id=user-agent name=agent value="{user_agent}">')
+    else:
+        return Response(status_code=status.HTTP_400_BAD_REQUEST)
+
+
+# 3.4
+app.saved_paths = set()
+
+
+@app.put('/save/{string}')
+def saveput(string: str):
+    if string not in app.saved_paths:
+        app.saved_paths.add(string)
+    return Response(status_code=status.HTTP_200_OK)
+
+
+@app.get('/save/{string}')
+def saveget(string: str, response: Response, user_agent: str | None = Header(default=None)):
+    if string not in app.saved_paths:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return
+    else:
+        url_to = "https://first-app-python-lvlup-dev.herokuapp.com/" + \
+            "info?format=json"  # zamienic url na heroku
+        return RedirectResponse(url=url_to, status_code=status.HTTP_301_MOVED_PERMANENTLY, headers={"User-Agent": user_agent})
+
+
+@app.delete('/save/{string}')
+def savedelete(string: str):
+    app.saved_paths.remove(string)
+    return
