@@ -4,6 +4,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from datetime import date, datetime
 from typing import List, Dict
+import sqlite3
 
 app = FastAPI()
 security = HTTPBasic()
@@ -163,3 +164,80 @@ def saveget(string: str, response: Response, user_agent: str | None = Header(def
 def savedelete(string: str):
     app.saved_paths.remove(string)
     return
+
+
+# SERIA ZADAŃ 4 (sqlite, sqlalchemy, postgres, ORM, docker)
+
+@app.on_event("startup")
+async def startup():
+    app.db_connection = sqlite3.connect("./northwind.db")
+    app.db_connection.text_factory = lambda b: b.decode(
+        errors="ignore")  # northwind specific
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    app.db_connection.close()
+
+
+@app.get("/suppliers")
+async def root(response: Response):
+    app.db_connection.row_factory = sqlite3.Row
+    cursor = app.db_connection.cursor().execute(
+        "SELECT SupplierID, CompanyName FROM Suppliers")
+    data = cursor.fetchall()
+    response.status_code = status.HTTP_200_OK
+    return data
+
+
+@app.get("/suppliers")
+async def suppliers(response: Response):
+    app.db_connection.row_factory = sqlite3.Row
+    cursor = app.db_connection.cursor().execute(
+        "SELECT SupplierID, CompanyName FROM Suppliers")
+    data = cursor.fetchall()
+    response.status_code = status.HTTP_200_OK
+    return data
+    # pobrałem plik northwind.db z githuba, nie działało kodowanie
+    # musiałem ręcznie zmienić literki w SQLiteStudio
+
+
+@app.get("/suppliers/{id}")
+async def suppliersid(id: int, response: Response):
+    app.db_connection.row_factory = sqlite3.Row
+    cursor = app.db_connection.cursor().execute(
+        f"SELECT * FROM Suppliers WHERE SupplierID = {id}")
+    data = cursor.fetchone()
+    if not data:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return
+    return data
+
+
+@app.get('/suppliers/{id}/products')
+async def suppliersidproducts(id: int,  response: Response):
+    app.db_connection.row_factory = sqlite3.Row
+    cursor = app.db_connection.cursor().execute(f'''
+    SELECT p.ProductID, p.ProductName, c.CategoryID, c.CategoryName, p.Discontinued
+    FROM Products as p JOIN Suppliers as s ON p.SupplierID = s.SupplierID
+    JOIN Categories as c ON p.CategoryID = c.CategoryID
+    WHERE s.SupplierID = {id}
+    ORDER BY p.ProductID DESC
+    ''')
+    data = cursor.fetchall()
+    if not data:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return
+    results = [dict(row) for row in data]
+    retv = []
+    for d in results:
+        r2 = d.copy()
+        r2.update(
+            {"Category": {'CategoryID': d['CategoryID'], 'CategoryName': d['CategoryName']}})
+        r2.pop('CategoryName')
+        r2.pop('CategoryID')
+        last = int(d['Discontinued'])
+        r2.pop('Discontinued')
+        r2.update({'Discontinued': last})
+        retv.append(r2)
+    return retv
