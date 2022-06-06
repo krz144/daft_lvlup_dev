@@ -1,10 +1,11 @@
-from fastapi import FastAPI, status, Response, Request, Depends, Query, Header
+from fastapi import FastAPI, status, Response, Request, Depends, Query, Header, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from datetime import date, datetime
 from typing import List, Dict
 import sqlite3
+from typing import NoReturn, Optional
 
 app = FastAPI()
 security = HTTPBasic()
@@ -167,12 +168,23 @@ def savedelete(string: str):
 
 
 # SERIA ZADAŃ 4 (sqlite, sqlalchemy, postgres, ORM, docker)
+# ---------------------------------------------------------------------------
+
+def my_text_factory(text: str):
+    text = text.decode(encoding='latin1')
+    text = text.replace("\n", " ")
+    if len(text) > 0:
+        while text[-1] == " ":
+            text = text[:-1]
+    return text
+
 
 @app.on_event("startup")
 async def startup():
     app.db_connection = sqlite3.connect("./northwind.db")
-    app.db_connection.text_factory = lambda b: b.decode(
-        errors="ignore")  # northwind specific
+    # app.db_connection.text_factory = lambda b: b.decode(
+    #     errors="ignore")  # northwind specific
+    app.db_connection.text_factory = my_text_factory
 
 
 @app.on_event("shutdown")
@@ -241,3 +253,88 @@ async def suppliersidproducts(id: int,  response: Response):
         r2.update({'Discontinued': last})
         retv.append(r2)
     return retv
+
+
+class Supplier(BaseModel):
+    CompanyName: str
+    ContactName: Optional[str] = ""
+    ContactTitle: Optional[str] = ""
+    Address: Optional[str] = ""
+    City: Optional[str] = ""
+    PostalCode: Optional[str] = ""
+    Country: Optional[str] = ""
+    Phone: Optional[str] = ""
+
+
+class SupplierPut(BaseModel):
+    CompanyName: Optional[str] = ""
+    ContactName: Optional[str] = ""
+    ContactTitle: Optional[str] = ""
+    Address: Optional[str] = ""
+    City: Optional[str] = ""
+    PostalCode: Optional[str] = ""
+    Country: Optional[str] = ""
+    Phone: Optional[str] = ""
+
+@app.post("/suppliers", status_code=201)
+async def post_suppliers(supplier: Supplier):
+    for atribute in supplier.__fields__:
+        if atribute == "":
+            atribute = None
+    app.db_connection.execute('''
+                                INSERT INTO Suppliers (CompanyName, ContactName, ContactTitle, Address, City, PostalCode, Country, Phone)
+                                VALUES (:CompanyName, :ContactName, :ContactTitle, :Address, :City, :PostalCode, :Country, :Phone)
+                                ''', {"CompanyName": supplier.CompanyName, "ContactName": supplier.ContactName, "ContactTitle": supplier.ContactTitle,
+                                      "Address": supplier.Address, "City": supplier.City, "PostalCode": supplier.PostalCode, "Country": supplier.Country, "Phone": supplier.Phone})
+                        
+    cursor = app.db_connection.cursor()
+    cursor.row_factory = sqlite3.Row
+    suppliers = cursor.execute('''SELECT *
+                                  FROM Suppliers
+                                  ORDER BY SupplierID DESC
+                                  LIMIT 1''').fetchone()
+
+    suppliers = dict(suppliers)
+    for key in suppliers:
+        if suppliers[key] == "":
+            suppliers[key] = None
+
+    return suppliers
+
+
+@app.put("/suppliers/{id}")
+async def put_suppliers(id: int, supplier: SupplierPut):
+    supplier = dict(supplier)
+
+    cursor = app.db_connection.cursor()
+    cursor.row_factory = sqlite3.Row
+    row = cursor.execute('''SELECT * FROM Suppliers WHERE SupplierID = :id''', {"id": id}).fetchone()
+
+    if row is None or len(row) == 0:
+        raise HTTPException(status_code=404)
+
+    for key in supplier:
+        if supplier[key] == "":
+            supplier[key] = row[key]
+        
+    
+    supplier["id"] = id
+    app.db_connection.execute('''UPDATE Suppliers
+                                 SET CompanyName = :CompanyName, ContactName = :ContactName, ContactTitle = :ContactTitle, Address = :Address, City = :City, PostalCode = :PostalCode, Country = :Country, Phone = :Phone
+                                 WHERE SupplierID = :id''', supplier)
+
+    row = cursor.execute('''SELECT * FROM Suppliers WHERE SupplierID = :id''', {"id": id}).fetchone()
+
+    return row
+
+
+@app.delete("/suppliers/{id}", status_code=204)
+async def delete(id: int):
+    cursor = app.db_connection.cursor()
+    cursor.row_factory = sqlite3.Row
+    row = cursor.execute('''SELECT * FROM Suppliers WHERE SupplierID = :id''', {"id": id}).fetchone()
+
+    if row is None or len(row) == 0:
+        raise HTTPException(status_code=404)
+
+    cursor.execute("DELETE FROM Suppliers WHERE SupplierID = :id", {"id": id})
