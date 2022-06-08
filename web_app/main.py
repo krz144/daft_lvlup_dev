@@ -210,8 +210,7 @@ async def suppliers(response: Response):
     data = cursor.fetchall()
     response.status_code = status.HTTP_200_OK
     return data
-    # pobrałem plik northwind.db z githuba, nie działało kodowanie
-    # musiałem ręcznie zmienić literki w SQLiteStudio
+
 
 
 @app.get("/suppliers/{id}")
